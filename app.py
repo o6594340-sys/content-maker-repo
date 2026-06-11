@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, render_template
 import requests
 import os
+import tempfile
 
 app = Flask(__name__)
 
@@ -15,11 +16,11 @@ def _load_env():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, _, val = line.partition("=")
-                os.environ.setdefault(key.strip(), val.strip())
+                os.environ[key.strip()] = val.strip()
 
 _load_env()
 
-from prompts import CHANNELS
+from prompts import CHANNELS, CONTENT_PLAN_SYSTEM, CONTENT_PLAN_CHANNEL_CONTEXT
 
 AI_PROVIDER = os.getenv("AI_PROVIDER", "claude")
 
@@ -73,6 +74,94 @@ def set_provider():
     if provider in ("claude", "openai", "gigachat", "ollama"):
         AI_PROVIDER = provider
     return jsonify({"provider": AI_PROVIDER})
+
+
+@app.route("/content_plan", methods=["POST"])
+def content_plan():
+    channel_id = request.form.get("channel", "all")
+    manual_text = request.form.get("text", "").strip()
+    file = request.files.get("file")
+
+    extracted = ""
+
+    if file and file.filename:
+        filename = file.filename.lower()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+        try:
+            if filename.endswith(".pptx"):
+                extracted = _parse_pptx(tmp_path)
+            elif filename.endswith(".pdf"):
+                extracted = _parse_pdf(tmp_path)
+            elif filename.endswith(".docx"):
+                extracted = _parse_docx(tmp_path)
+            else:
+                return jsonify({"error": "Неподдерживаемый формат. Используй PPTX, PDF или DOCX."}), 400
+        finally:
+            os.unlink(tmp_path)
+
+    if manual_text:
+        extracted = (extracted + "\n\n" + manual_text).strip() if extracted else manual_text
+
+    if not extracted:
+        return jsonify({"error": "Загрузи файл или вставь текст"}), 400
+
+    channel_ctx = CONTENT_PLAN_CHANNEL_CONTEXT.get(channel_id, CONTENT_PLAN_CHANNEL_CONTEXT["all"])
+    user_prompt = f"Канал: {channel_ctx}\n\nМатериал:\n{extracted[:12000]}"
+
+    try:
+        if AI_PROVIDER == "claude":
+            result = _call_claude(CONTENT_PLAN_SYSTEM, user_prompt)
+        elif AI_PROVIDER == "openai":
+            result = _call_openai(CONTENT_PLAN_SYSTEM, user_prompt)
+        elif AI_PROVIDER == "gigachat":
+            result = _call_gigachat(CONTENT_PLAN_SYSTEM, user_prompt)
+        else:
+            result = _call_ollama(CONTENT_PLAN_SYSTEM, user_prompt)
+        return jsonify({"text": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def _parse_pptx(path):
+    from pptx import Presentation
+    prs = Presentation(path)
+    lines = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                for para in shape.text_frame.paragraphs:
+                    text = "".join(run.text for run in para.runs).strip()
+                    if text:
+                        lines.append(text)
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def _parse_pdf(path):
+    from PyPDF2 import PdfReader
+    reader = PdfReader(path)
+    pages = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        if text.strip():
+            pages.append(text.strip())
+    return "\n\n".join(pages)
+
+
+def _parse_docx(path):
+    import zipfile
+    from xml.etree import ElementTree as ET
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    with zipfile.ZipFile(path) as z:
+        xml = z.read("word/document.xml")
+    root = ET.fromstring(xml)
+    lines = []
+    for p in root.iter(ns + "p"):
+        text = "".join(r.text or "" for r in p.iter(ns + "t")).strip()
+        lines.append(text)
+    return "\n".join(lines).strip()
 
 
 @app.route("/health")

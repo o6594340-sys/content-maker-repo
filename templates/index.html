@@ -17,12 +17,31 @@
     }
 
     header {
-      padding: 24px 32px;
+      padding: 16px 32px;
       border-bottom: 1px solid #1e1e2e;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
+
+    .tab-btns {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+    .tab-btn {
+      padding: 6px 16px;
+      border-radius: 7px;
+      border: 1.5px solid #1e1e2e;
+      background: transparent;
+      color: #666;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { border-color: #444; color: #ccc; }
+    .tab-btn.active { border-color: #7c6af7; background: #1a1830; color: #a89cf8; }
 
     header h1 {
       font-size: 18px;
@@ -280,9 +299,73 @@
       color: #a89cf8;
     }
 
+    /* Content plan page */
+    .cp-page {
+      display: none;
+      flex: 1;
+      padding: 28px 32px;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 860px;
+    }
+    .cp-page.active { display: flex; }
+
+    .cp-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .cp-upload-btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1.5px dashed #333;
+      background: #13131a;
+      color: #888;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .cp-upload-btn:hover { border-color: #7c6af7; color: #a89cf8; }
+    .cp-upload-btn.has-file { border-color: #4caf50; color: #4caf50; border-style: solid; }
+
+    .cp-channel-select {
+      background: #13131a;
+      border: 1.5px solid #1e1e2e;
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #e8e8f0;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .cp-channel-select:focus { border-color: #7c6af7; }
+
+    .cp-output {
+      background: #13131a;
+      border: 1.5px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 24px;
+      min-height: 400px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #ddd;
+      white-space: pre-wrap;
+      word-break: break-word;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .cp-output.empty { color: #333; display: flex; align-items: center; justify-content: center; }
+    .cp-output.loading { display: flex; align-items: center; justify-content: center; gap: 8px; color: #555; }
+
     @media (max-width: 768px) {
       .container { grid-template-columns: 1fr; }
       .sidebar { border-right: none; border-bottom: 1px solid #1e1e2e; }
+      .cp-page { padding: 20px 16px; }
     }
   </style>
 </head>
@@ -291,9 +374,46 @@
 <header>
   <div class="dot" id="statusDot"></div>
   <h1>Content Maker</h1>
+  <div class="tab-btns">
+    <button class="tab-btn active" onclick="switchTab('generator')">Генератор</button>
+    <button class="tab-btn" onclick="switchTab('plan')">Контент-план</button>
+  </div>
 </header>
 
-<div class="container">
+<!-- Content Plan page -->
+<div class="cp-page" id="cpPage">
+  <div>
+    <div class="section-label">Канал</div>
+    <select class="cp-channel-select" id="cpChannel">
+      <option value="all">Все три канала</option>
+      {% for ch in channels %}
+      <option value="{{ ch.id }}">{{ ch.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <div class="section-label">Материал</div>
+    <div class="cp-row">
+      <label class="cp-upload-btn" id="cpUploadLabel">
+        📎 Загрузить файл (PPTX, PDF, DOCX)
+        <input type="file" id="cpFile" accept=".pptx,.pdf,.docx" style="display:none" onchange="onFileSelected(this)">
+      </label>
+    </div>
+    <div style="margin-top:10px">
+      <textarea id="cpText" placeholder="Или вставь текст вручную — тезисы, описание темы, любой материал..." style="height:120px; width:100%; background:#13131a; border:1.5px solid #1e1e2e; border-radius:10px; padding:12px 14px; color:#e8e8f0; font-size:14px; font-family:inherit; outline:none; resize:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#7c6af7'" onblur="this.style.borderColor='#1e1e2e'"></textarea>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:10px; align-items:center">
+    <button class="generate-btn" style="max-width:280px" onclick="generatePlan()">Создать контент-план</button>
+    <button class="copy-btn" id="cpCopyBtn" onclick="copyPlan()" style="display:none">Копировать</button>
+  </div>
+
+  <div class="cp-output empty" id="cpOutput">Загрузи материал и нажми «Создать контент-план»</div>
+</div>
+
+<div class="container" id="generatorPage">
   <div class="sidebar">
 
     <div>
@@ -502,6 +622,81 @@
 
   checkStatus();
   setInterval(checkStatus, 10000);
+
+  // Tab switching
+  function switchTab(tab) {
+    const isGen = tab === 'generator';
+    document.getElementById('generatorPage').style.display = isGen ? 'grid' : 'none';
+    document.getElementById('cpPage').classList.toggle('active', !isGen);
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', (i === 0) === isGen);
+    });
+  }
+
+  // Content plan
+  function onFileSelected(input) {
+    const label = document.getElementById('cpUploadLabel');
+    if (input.files.length > 0) {
+      label.textContent = '✓ ' + input.files[0].name;
+      label.classList.add('has-file');
+    } else {
+      label.textContent = '📎 Загрузить файл (PPTX, PDF, DOCX)';
+      label.classList.remove('has-file');
+      // re-append hidden input
+      const inp = document.getElementById('cpFile');
+      label.appendChild(inp);
+    }
+  }
+
+  async function generatePlan() {
+    const file = document.getElementById('cpFile').files[0];
+    const text = document.getElementById('cpText').value.trim();
+    if (!file && !text) {
+      cpShowError('Загрузи файл или вставь текст');
+      return;
+    }
+    const channel = document.getElementById('cpChannel').value;
+    const formData = new FormData();
+    if (file) formData.append('file', file);
+    if (text) formData.append('text', text);
+    formData.append('channel', channel);
+
+    const out = document.getElementById('cpOutput');
+    out.className = 'cp-output loading';
+    out.innerHTML = '<div class="spinner"></div><span>Генерирую контент-план...</span>';
+    document.getElementById('cpCopyBtn').style.display = 'none';
+
+    try {
+      const res = await fetch('/content_plan', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        cpShowError(data.error || 'Ошибка генерации');
+      } else {
+        out.className = 'cp-output';
+        out.textContent = data.text;
+        document.getElementById('cpCopyBtn').style.display = 'block';
+      }
+    } catch (e) {
+      cpShowError('Не удалось подключиться к серверу');
+    }
+  }
+
+  function cpShowError(msg) {
+    const out = document.getElementById('cpOutput');
+    out.className = 'cp-output';
+    out.innerHTML = `<div class="error-msg">${msg}</div>`;
+  }
+
+  async function copyPlan() {
+    const text = document.getElementById('cpOutput').textContent;
+    const btn = document.getElementById('cpCopyBtn');
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Скопировано ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Копировать'; btn.classList.remove('copied'); }, 2000);
+    } catch (e) { btn.textContent = 'Ошибка'; }
+  }
 </script>
 
 </body>
