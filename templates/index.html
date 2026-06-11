@@ -290,10 +290,11 @@
         <div class="type-btn active" data-type="post" onclick="selectType('post')">Пост</div>
         <div class="type-btn" data-type="short" onclick="selectType('short')">Короткий</div>
         <div class="type-btn" data-type="ideas" onclick="selectType('ideas')">Идеи</div>
+        <div class="type-btn" data-type="rewrite" onclick="selectType('rewrite')">Улучшить</div>
       </div>
     </div>
 
-    <div>
+    <div id="topicBlock">
       <div class="section-label">Тема</div>
       <div class="input-group">
         <input type="text" id="topicInput" placeholder="Например: рёкан как формат для MICE-групп" />
@@ -301,7 +302,7 @@
     </div>
 
     <div>
-      <div class="section-label">Тезисы / контекст <span style="color:#444">(необязательно)</span></div>
+      <div class="section-label" id="briefLabel">Тезисы / контекст <span style="color:#444">(необязательно)</span></div>
       <div class="input-group">
         <textarea id="briefInput" placeholder="Что важно упомянуть? Факты, детали, ключевые мысли..."></textarea>
       </div>
@@ -341,10 +342,24 @@
       el.classList.toggle('active', el.dataset.type === type);
     });
     updateBtnLabel();
+    const isRewrite = type === 'rewrite';
+    document.getElementById('topicBlock').style.display = isRewrite ? 'none' : 'block';
+    document.getElementById('briefLabel').innerHTML = isRewrite
+      ? 'Твой текст / черновик / тезисы'
+      : 'Тезисы / контекст <span style="color:#444">(необязательно)</span>';
+    document.getElementById('briefInput').placeholder = isRewrite
+      ? 'Вставь свой черновик, тезисы или набросок — модель сделает из этого готовый пост...'
+      : 'Что важно упомянуть? Факты, детали, ключевые мысли...';
+    document.getElementById('briefInput').style.height = isRewrite ? '160px' : '100px';
   }
 
   function updateBtnLabel() {
-    const labels = { post: 'Написать пост', short: 'Написать короткий пост', ideas: 'Сгенерировать идеи' };
+    const labels = {
+      post: 'Написать пост',
+      short: 'Написать короткий пост',
+      ideas: 'Сгенерировать идеи',
+      rewrite: 'Улучшить текст',
+    };
     document.getElementById('generateBtn').textContent = labels[selectedType] || 'Написать пост';
   }
 

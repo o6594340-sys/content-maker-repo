@@ -27,7 +27,10 @@ def generate():
 
     if not channel_id or channel_id not in CHANNELS:
         return jsonify({"error": "Канал не выбран"}), 400
-    if not topic:
+    if post_type == "rewrite":
+        if not brief:
+            return jsonify({"error": "Вставьте свой текст или тезисы в поле ниже"}), 400
+    elif not topic:
         return jsonify({"error": "Укажите тему поста"}), 400
 
     channel = CHANNELS[channel_id]
@@ -53,6 +56,14 @@ def health():
 
 
 def _build_user_prompt(topic, brief, post_type):
+    if post_type == "rewrite":
+        return (
+            f"Вот мой черновик / тезисы:\n\n{brief}\n\n"
+            "Перепиши это в готовый пост для Telegram в стиле канала. "
+            "Сохрани мои мысли и факты, но сделай текст живым, цепляющим и в нужном стиле. "
+            "Не добавляй то, чего нет в исходнике."
+        )
+
     type_instructions = {
         "post": "Напиши полноценный пост для Telegram.",
         "ideas": "Предложи 5 идей для постов по этой теме. Для каждой — заголовок и 1-2 строки о чём.",
