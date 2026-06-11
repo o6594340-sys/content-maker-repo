@@ -8,14 +8,13 @@ def _load_examples():
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
-def _examples_block(channel_id, examples, count=3):
+def _examples_block(channel_id, examples, count=1):
     posts = examples.get(channel_id, [])[:count]
     if not posts:
         return ""
-    lines = ["\nПРИМЕРЫ ПОСТОВ (пиши в похожем стиле):\n"]
-    for i, p in enumerate(posts, 1):
-        lines.append(f"--- Пример {i} ---\n{p}\n")
-    return "\n".join(lines)
+    # Берём только первые 400 символов примера чтобы не перегружать модель
+    sample = posts[0][:400] + "..."
+    return f"\n\nПРИМЕР СТИЛЯ:\n{sample}"
 
 _examples = _load_examples()
 

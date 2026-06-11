@@ -256,6 +256,30 @@
       text-align: right;
     }
 
+    .provider-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .provider-btn {
+      flex: 1;
+      padding: 7px 4px;
+      border-radius: 8px;
+      border: 1.5px solid #1e1e2e;
+      background: #13131a;
+      color: #777;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .provider-btn:hover { border-color: #444; color: #ccc; }
+    .provider-btn.active {
+      border-color: #7c6af7;
+      background: #1a1830;
+      color: #a89cf8;
+    }
+
     @media (max-width: 768px) {
       .container { grid-template-columns: 1fr; }
       .sidebar { border-right: none; border-bottom: 1px solid #1e1e2e; }
@@ -271,6 +295,16 @@
 
 <div class="container">
   <div class="sidebar">
+
+    <div>
+      <div class="section-label">Модель</div>
+      <div class="provider-btns">
+        <div class="provider-btn {% if provider == 'claude' %}active{% endif %}" data-p="claude" onclick="selectProvider('claude')">Claude</div>
+        <div class="provider-btn {% if provider == 'openai' %}active{% endif %}" data-p="openai" onclick="selectProvider('openai')">ChatGPT</div>
+        <div class="provider-btn {% if provider == 'gigachat' %}active{% endif %}" data-p="gigachat" onclick="selectProvider('gigachat')">GigaChat</div>
+        <div class="provider-btn {% if provider == 'ollama' %}active{% endif %}" data-p="ollama" onclick="selectProvider('ollama')">Local</div>
+      </div>
+    </div>
 
     <div>
       <div class="section-label">Канал</div>
@@ -327,6 +361,19 @@
 <script>
   let selectedChannel = null;
   let selectedType = 'post';
+  let selectedProvider = '{{ provider }}';
+
+  function selectProvider(p) {
+    selectedProvider = p;
+    document.querySelectorAll('.provider-btn').forEach(el => {
+      el.classList.toggle('active', el.dataset.p === p);
+    });
+    fetch('/set_provider', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({provider: p})
+    });
+  }
 
   function selectChannel(id) {
     selectedChannel = id;
