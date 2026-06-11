@@ -405,6 +405,11 @@
     </div>
   </div>
 
+  <div>
+    <div class="section-label">Свои инструкции <span style="color:#444">(необязательно — заменяют стандартный промпт)</span></div>
+    <textarea id="cpSystemPrompt" placeholder="Вставь свой промпт для генерации контент-плана. Если пусто — используется стандартный..." style="height:110px; width:100%; background:#13131a; border:1.5px solid #1e1e2e; border-radius:10px; padding:12px 14px; color:#e8e8f0; font-size:14px; font-family:inherit; outline:none; resize:none; transition:border-color 0.15s;" onfocus="this.style.borderColor='#7c6af7'" onblur="this.style.borderColor='#1e1e2e'"></textarea>
+  </div>
+
   <div style="display:flex; gap:10px; align-items:center">
     <button class="generate-btn" style="max-width:280px" onclick="generatePlan()">Создать контент-план</button>
     <button class="copy-btn" id="cpCopyBtn" onclick="copyPlan()" style="display:none">Копировать</button>
@@ -656,10 +661,12 @@
       return;
     }
     const channel = document.getElementById('cpChannel').value;
+    const customPrompt = document.getElementById('cpSystemPrompt').value.trim();
     const formData = new FormData();
     if (file) formData.append('file', file);
     if (text) formData.append('text', text);
     formData.append('channel', channel);
+    if (customPrompt) formData.append('system_prompt', customPrompt);
 
     const out = document.getElementById('cpOutput');
     out.className = 'cp-output loading';

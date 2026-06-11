@@ -107,18 +107,20 @@ def content_plan():
     if not extracted:
         return jsonify({"error": "Загрузи файл или вставь текст"}), 400
 
+    custom_system = request.form.get("system_prompt", "").strip()
+    system_prompt = custom_system if custom_system else CONTENT_PLAN_SYSTEM
     channel_ctx = CONTENT_PLAN_CHANNEL_CONTEXT.get(channel_id, CONTENT_PLAN_CHANNEL_CONTEXT["all"])
     user_prompt = f"Канал: {channel_ctx}\n\nМатериал:\n{extracted[:12000]}"
 
     try:
         if AI_PROVIDER == "claude":
-            result = _call_claude(CONTENT_PLAN_SYSTEM, user_prompt)
+            result = _call_claude(system_prompt, user_prompt)
         elif AI_PROVIDER == "openai":
-            result = _call_openai(CONTENT_PLAN_SYSTEM, user_prompt)
+            result = _call_openai(system_prompt, user_prompt)
         elif AI_PROVIDER == "gigachat":
-            result = _call_gigachat(CONTENT_PLAN_SYSTEM, user_prompt)
+            result = _call_gigachat(system_prompt, user_prompt)
         else:
-            result = _call_ollama(CONTENT_PLAN_SYSTEM, user_prompt)
+            result = _call_ollama(system_prompt, user_prompt)
         return jsonify({"text": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
