@@ -8,33 +8,34 @@
 |---|---|---|
 | `mice_japan` | MICE Japan | MICE-туризм в Японию: отели, гастрономия, культура, логистика групп |
 | `match_point` | MATCH POINT | MICE в России и мире: тренды, новости рынка, обзоры площадок и отелей |
-| `turdezhur` | ТурДежурный | AI-решения для отелей и турфирм; канал продаёт AI-продукты автора |
+| `turdezhur` | ТурДежурный | ИИ в бизнесе и автоматизация для туризма и других отраслей |
 
-Автор всех каналов — Ольга Харлёнок. Голос единый, подача разная под аудиторию.
+Автор всех каналов — Ольга Харлёнок. Промпты написаны самим автором и интегрированы в `prompts.py`.
 
 ## Стек
 
 - **Backend:** Python / Flask
 - **AI-провайдеры:** Claude (Anthropic), OpenAI (GPT-4o-mini), GigaChat (Сбер), Ollama (локально)
 - **Frontend:** Vanilla HTML/CSS/JS, тёмная тема
-- **Промпты:** `prompts.py` — system prompt + ЦА + few-shot примеры из `examples.json`
+- **Промпты:** `prompts.py` — авторские system prompts + few-shot примеры из `examples.json`
 
 ## Структура файлов
 
 ```
-app.py              — Flask-сервер: /generate, /set_provider, /health
-prompts.py          — промпты, ЦА и характеры каналов; грузит примеры из examples.json
+app.py              — Flask-сервер: /generate, /content_plan, /set_provider, /health
+prompts.py          — авторские промпты каналов + CONTENT_PLAN_SYSTEM + CONTENT_PLAN_CHANNEL_CONTEXT
 examples.json       — реальные посты каналов (few-shot), парсится из docx
 .env                — API ключи и выбор провайдера (не в git)
 templates/
-  index.html        — весь фронтенд
+  index.html        — весь фронтенд (2 вкладки: Генератор + Контент-план)
 Match Point/
   posts Match Point.docx   — исходные посты канала
 MICE Japan/
   Posts Mice Japan.docx    — исходные посты канала
-Turdezhur/          — папка под будущие посты канала (docx пока нет)
+Turdezhur/
+  Posts.docx               — исходные посты канала
 START.md            — инструкция по установке и запуску
-requirements.txt    — flask, requests, anthropic, openai
+requirements.txt    — flask, requests, anthropic, openai, python-pptx, pypdf2
 ```
 
 ## Запуск
@@ -58,9 +59,9 @@ python app.py
 | `GIGACHAT_CLIENT_SECRET` | — | Client Secret GigaChat |
 | `OLLAMA_MODEL` | `llama3.2:3b` | Локальная модель |
 
-Провайдер также переключается прямо в UI — кнопки Claude / ChatGPT / GigaChat / Local.
+Провайдер переключается прямо в UI — кнопки Claude / ChatGPT / GigaChat / Local.
 
-## Режимы генерации
+## Режимы генерации (вкладка Генератор)
 
 | Режим | Описание |
 |---|---|
@@ -69,25 +70,69 @@ python app.py
 | Идеи | 5 идей для постов по теме |
 | Улучшить | Черновик / тезисы → готовый пост |
 
+## Контент-план (вкладка Контент-план)
+
+Загрузка материала → 50+ идей для постов.
+
+- **Форматы файлов:** PPTX, PDF, DOCX
+- **Или:** текст вручную в поле
+- **Канал:** один из трёх или все сразу (тогда у каждой идеи указан канал)
+- **Свои инструкции:** необязательное поле — если заполнено, заменяет стандартный промпт
+
+Endpoint: `POST /content_plan` (multipart/form-data: file, text, channel, system_prompt)
+
+## Промпты
+
+Все промпты написаны Ольгой Харлёнок и хранятся в `prompts.py`:
+- `CHANNELS[id]["system_prompt"]` — авторский промпт каждого канала
+- `CONTENT_PLAN_SYSTEM` — промпт для генерации контент-плана (50+ идей)
+- `CONTENT_PLAN_CHANNEL_CONTEXT` — контекст канала для контент-плана
+
+Few-shot примеры: `examples.json` (MICE Japan: 15 постов, MATCH POINT: 13, ТурДежурный: 8).
+Примеры обрезаются до 900 символов, 1 пример на канал.
+
 ## Как добавить примеры постов
 
 1. Положить `.docx` с постами в папку канала
-2. Запустить парсер (скрипт встроен в историю сессии, вынести в `parse_posts.py`):
+2. Запустить в терминале:
 ```python
-# Логика в prompts.py: _load_examples() читает examples.json
-# Перегенерировать: запустить скрипт парсинга docx → examples.json
+python -c "
+import zipfile, json, os
+from xml.etree import ElementTree as ET
+
+def parse_docx(path):
+    ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    with zipfile.ZipFile(path) as z:
+        xml = z.read('word/document.xml')
+    root = ET.fromstring(xml)
+    paragraphs = []
+    for p in root.iter(ns + 'p'):
+        text = ''.join(r.text or '' for r in p.iter(ns + 't')).strip()
+        paragraphs.append(text)
+    posts, current = [], []
+    for para in paragraphs:
+        if para: current.append(para)
+        else:
+            if current: posts.append('\n'.join(current)); current = []
+    if current: posts.append('\n'.join(current))
+    return posts
+
+with open('examples.json', 'r', encoding='utf-8') as f:
+    examples = json.load(f)
+examples['turdezhur'] = parse_docx('Turdezhur/Posts.docx')
+with open('examples.json', 'w', encoding='utf-8') as f:
+    json.dump(examples, f, ensure_ascii=False, indent=2)
+"
 ```
 
 ## Следующие шаги
 
-- Добавить кастомные промпты от автора (присланы будут отдельно)
-- Добавить посты ТурДежурного в `Turdezhur/` → перегенерировать `examples.json`
-- Добавить вкладку "Контент-план": загрузка текста/презентации → 20-30 идей постов
-- Деплой на российский VPS (Timeweb/Selectel, 16 GB RAM)
 - GigaChat: получить ключи на developers.sber.ru и протестировать
+- Деплой на российский VPS (Timeweb/Selectel)
+- Отдельный проект: парсер новостей по темам и конкурентам
 
 ## Деплой на российский VPS
 
 Те же шаги что и локально. Рекомендуемые хостинги: Timeweb, Selectel, Яндекс Облако.
-Минимальные требования: 16 GB RAM, 30 GB диск, 4 CPU (для Ollama).
 Для облачных провайдеров (Claude/OpenAI) — достаточно 2 GB RAM.
+Для Ollama — минимум 16 GB RAM, 30 GB диск, 4 CPU.
