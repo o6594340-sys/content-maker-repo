@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Maker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 24px 32px;
+      border-bottom: 1px solid #1e1e2e;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: #fff;
+    }
+
+    header .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ff4444;
+      transition: background 0.3s;
+    }
+    header .dot.online { background: #4caf50; }
+
+    .container {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 0;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sidebar {
+      border-right: 1px solid #1e1e2e;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    /* Channel cards */
+    .channels {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .channel-card {
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1.5px solid #1e1e2e;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: #13131a;
+    }
+    .channel-card:hover { border-color: #444; background: #16161f; }
+    .channel-card.active {
+      border-color: #7c6af7;
+      background: #1a1830;
+    }
+
+    .channel-card .ch-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .channel-card .ch-desc {
+      font-size: 12px;
+      color: #777;
+      line-height: 1.4;
+    }
+    .channel-card.active .ch-name { color: #a89cf8; }
+
+    /* Post type */
+    .post-types {
+      display: flex;
+      gap: 8px;
+    }
+    .type-btn {
+      flex: 1;
+      padding: 8px 6px;
+      border-radius: 8px;
+      border: 1.5px solid #1e1e2e;
+      background: #13131a;
+      color: #999;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .type-btn:hover { border-color: #444; color: #ccc; }
+    .type-btn.active {
+      border-color: #7c6af7;
+      background: #1a1830;
+      color: #a89cf8;
+    }
+
+    /* Inputs */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      background: #13131a;
+      border: 1.5px solid #1e1e2e;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #e8e8f0;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.15s;
+      resize: none;
+      outline: none;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: #7c6af7; }
+    input[type="text"]::placeholder, textarea::placeholder { color: #444; }
+
+    textarea { height: 100px; line-height: 1.5; }
+
+    .generate-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: none;
+      background: #7c6af7;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.01em;
+    }
+    .generate-btn:hover { background: #9180f9; }
+    .generate-btn:active { transform: scale(0.98); }
+    .generate-btn:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+
+    /* Main output area */
+    .main {
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .output-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .copy-btn {
+      padding: 7px 16px;
+      border-radius: 7px;
+      border: 1.5px solid #1e1e2e;
+      background: transparent;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { border-color: #7c6af7; color: #a89cf8; }
+    .copy-btn.copied { border-color: #4caf50; color: #4caf50; }
+
+    .output-box {
+      background: #13131a;
+      border: 1.5px solid #1e1e2e;
+      border-radius: 12px;
+      padding: 24px;
+      min-height: 300px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #ddd;
+      white-space: pre-wrap;
+      word-break: break-word;
+      flex: 1;
+    }
+
+    .output-box.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 14px;
+    }
+
+    .output-box.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #555;
+    }
+
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid #333;
+      border-top-color: #7c6af7;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      background: #1a0f0f;
+      border: 1.5px solid #4a1515;
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: #ff6b6b;
+      font-size: 13px;
+    }
+
+    .char-count {
+      font-size: 12px;
+      color: #555;
+      text-align: right;
+    }
+
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid #1e1e2e; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="dot" id="statusDot"></div>
+  <h1>Content Maker</h1>
+</header>
+
+<div class="container">
+  <div class="sidebar">
+
+    <div>
+      <div class="section-label">Канал</div>
+      <div class="channels" id="channelList">
+        {% for ch in channels %}
+        <div class="channel-card" data-id="{{ ch.id }}" onclick="selectChannel('{{ ch.id }}')">
+          <div class="ch-name">{{ ch.name }}</div>
+          <div class="ch-desc">{{ ch.description }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Тип контента</div>
+      <div class="post-types">
+        <div class="type-btn active" data-type="post" onclick="selectType('post')">Пост</div>
+        <div class="type-btn" data-type="short" onclick="selectType('short')">Короткий</div>
+        <div class="type-btn" data-type="ideas" onclick="selectType('ideas')">Идеи</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Тема</div>
+      <div class="input-group">
+        <input type="text" id="topicInput" placeholder="Например: рёкан как формат для MICE-групп" />
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Тезисы / контекст <span style="color:#444">(необязательно)</span></div>
+      <div class="input-group">
+        <textarea id="briefInput" placeholder="Что важно упомянуть? Факты, детали, ключевые мысли..."></textarea>
+      </div>
+    </div>
+
+    <button class="generate-btn" id="generateBtn" onclick="generate()">Написать пост</button>
+
+  </div>
+
+  <div class="main">
+    <div class="output-header">
+      <h2 id="outputLabel">Результат</h2>
+      <button class="copy-btn" id="copyBtn" onclick="copyText()" style="display:none">Копировать</button>
+    </div>
+    <div class="output-box empty" id="outputBox">
+      Выберите канал и введите тему
+    </div>
+    <div class="char-count" id="charCount"></div>
+  </div>
+</div>
+
+<script>
+  let selectedChannel = null;
+  let selectedType = 'post';
+
+  function selectChannel(id) {
+    selectedChannel = id;
+    document.querySelectorAll('.channel-card').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === id);
+    });
+    updateBtnLabel();
+  }
+
+  function selectType(type) {
+    selectedType = type;
+    document.querySelectorAll('.type-btn').forEach(el => {
+      el.classList.toggle('active', el.dataset.type === type);
+    });
+    updateBtnLabel();
+  }
+
+  function updateBtnLabel() {
+    const labels = { post: 'Написать пост', short: 'Написать короткий пост', ideas: 'Сгенерировать идеи' };
+    document.getElementById('generateBtn').textContent = labels[selectedType] || 'Написать пост';
+  }
+
+  async function generate() {
+    if (!selectedChannel) {
+      showError('Выберите канал');
+      return;
+    }
+    const topic = document.getElementById('topicInput').value.trim();
+    if (!topic) {
+      document.getElementById('topicInput').focus();
+      return;
+    }
+
+    const brief = document.getElementById('briefInput').value.trim();
+    const btn = document.getElementById('generateBtn');
+
+    btn.disabled = true;
+    setLoading();
+
+    try {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: selectedChannel, topic, brief, post_type: selectedType }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showError(data.error || 'Ошибка генерации');
+      } else {
+        showResult(data.text);
+      }
+    } catch (e) {
+      showError('Не удалось подключиться к серверу');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function setLoading() {
+    const box = document.getElementById('outputBox');
+    box.className = 'output-box loading';
+    box.innerHTML = '<div class="spinner"></div><span>Генерирую...</span>';
+    document.getElementById('copyBtn').style.display = 'none';
+    document.getElementById('charCount').textContent = '';
+  }
+
+  function showResult(text) {
+    const box = document.getElementById('outputBox');
+    box.className = 'output-box';
+    box.textContent = text;
+    document.getElementById('copyBtn').style.display = 'block';
+    document.getElementById('charCount').textContent = `${text.length} символов`;
+    document.getElementById('outputLabel').textContent = 'Результат';
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('outputBox');
+    box.className = 'output-box';
+    box.innerHTML = `<div class="error-msg">${msg}</div>`;
+    document.getElementById('copyBtn').style.display = 'none';
+    document.getElementById('charCount').textContent = '';
+  }
+
+  async function copyText() {
+    const text = document.getElementById('outputBox').textContent;
+    const btn = document.getElementById('copyBtn');
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Скопировано ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Копировать'; btn.classList.remove('copied'); }, 2000);
+    } catch (e) {
+      btn.textContent = 'Ошибка';
+    }
+  }
+
+  // Check Ollama status
+  async function checkStatus() {
+    try {
+      const res = await fetch('/health');
+      const data = await res.json();
+      const dot = document.getElementById('statusDot');
+      dot.classList.toggle('online', data.ollama);
+      dot.title = data.ollama ? `Ollama online · ${data.models.join(', ')}` : 'Ollama offline';
+    } catch (e) {}
+  }
+
+  // Enter to submit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
+  });
+
+  checkStatus();
+  setInterval(checkStatus, 10000);
+</script>
+
+</body>
+</html>
